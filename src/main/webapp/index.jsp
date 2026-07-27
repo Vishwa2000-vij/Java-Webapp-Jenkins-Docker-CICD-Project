@@ -31,7 +31,7 @@
     <div class="container">
         <h1>Java DevOps CI/CD Project</h1>
 
-        <h2>Deployment Successful!</h2>
+        <h2>Automatic CI/CD Deployment Successful!</h2>
 
         <p>This application was built using Maven and deployed using Docker and Jenkins.</p>
 
