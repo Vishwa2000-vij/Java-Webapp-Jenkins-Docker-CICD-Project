@@ -11,3 +11,4 @@ A Java web application built with Maven and deployed using Jenkins, Docker, Dock
 - GitHub
 - AWS EC2
 - Apache Tomcat
+Webhook automatic build test
