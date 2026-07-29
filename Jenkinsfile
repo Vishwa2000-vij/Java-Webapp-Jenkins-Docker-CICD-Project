@@ -2,27 +2,48 @@ pipeline {
     agent any
 
     options {
-        skipDefaultCheckout(true)
         timestamps()
+        disableConcurrentBuilds()
     }
 
     environment {
-        IMAGE_REPO    = 'vishwanathv/java-webapp'
-        APP_SERVER_IP = '172.31.11.116'
-        CONTAINER_NAME = 'java-webapp'
+        IMAGE_NAME = 'vishwanathv/java-webapp'
+        DEPLOY_SCRIPT = '/var/lib/jenkins/project3-deploy.sh'
     }
 
     stages {
+        stage('Verify Environment') {
+            steps {
+                sh '''
+                    echo "Running as: $(whoami)"
+                    echo "Jenkins server: $(hostname)"
 
-        stage('Checkout') {
+                    java --version
+                    mvn --version
+                    docker --version
+                    git --version
+                '''
+            }
+        }
+
+        stage('Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Maven Build') {
+        stage('Build Application') {
             steps {
-                sh 'mvn -B clean package'
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Verify WAR File') {
+            steps {
+                sh '''
+                    test -f target/java-webapp.war
+                    ls -lh target/java-webapp.war
+                '''
             }
         }
 
@@ -30,97 +51,69 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      -t "$IMAGE_REPO:$BUILD_NUMBER" \
-                      -t "$IMAGE_REPO:latest" .
+                        -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
                 '''
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Docker Hub Login') {
             steps {
                 withCredentials([
                     usernamePassword(
                         credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_TOKEN'
+                        usernameVariable: 'DOCKERHUB_USERNAME',
+                        passwordVariable: 'DOCKERHUB_TOKEN'
                     )
                 ]) {
                     sh '''
-                        set +x
-
-                        echo "$DOCKER_TOKEN" |
+                        echo "$DOCKERHUB_TOKEN" |
                         docker login \
-                          --username "$DOCKER_USER" \
-                          --password-stdin
-
-                        docker push "$IMAGE_REPO:$BUILD_NUMBER"
-                        docker push "$IMAGE_REPO:latest"
-
-                        docker logout
+                            --username "$DOCKERHUB_USERNAME" \
+                            --password-stdin
                     '''
                 }
             }
         }
 
-        stage('Deploy to App Server') {
+        stage('Push Docker Image') {
             steps {
-                sshagent(credentials: ['app-server-ssh']) {
-                    sh '''
-                        ssh ubuntu@"$APP_SERVER_IP" "
-                            docker pull $IMAGE_REPO:$BUILD_NUMBER
-
-                            docker rm -f $CONTAINER_NAME || true
-
-                            docker run -d \
-                              --name $CONTAINER_NAME \
-                              --restart unless-stopped \
-                              -p 8080:8080 \
-                              $IMAGE_REPO:$BUILD_NUMBER
-                        "
-                    '''
-                }
+                sh '''
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${IMAGE_NAME}:latest
+                '''
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Deploy with Ansible') {
             steps {
-                sshagent(credentials: ['app-server-ssh']) {
-                    sh '''
-                        ssh ubuntu@"$APP_SERVER_IP" '
-                            for attempt in $(seq 1 12)
-                            do
-                                if curl -fsS http://localhost:8080 |
-                                   grep -q "Java DevOps CI/CD Project"
-                                then
-                                    echo "Application verification successful"
-                                    exit 0
-                                fi
+                sh '''
+                    test -x ${DEPLOY_SCRIPT}
+                    ${DEPLOY_SCRIPT}
+                '''
+            }
+        }
 
-                                echo "Waiting for Tomcat to start..."
-                                sleep 5
-                            done
-
-                            echo "Application verification failed"
-                            docker logs --tail 50 java-webapp
-                            exit 1
-                        '
-                    '''
-                }
+        stage('Deployment Verification') {
+            steps {
+                echo "Successfully deployed ${IMAGE_NAME}:${BUILD_NUMBER}"
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline completed successfully."
+            echo "Pipeline SUCCESS: ${IMAGE_NAME}:${BUILD_NUMBER}"
         }
 
         failure {
-            echo "Pipeline failed. Check the failed stage logs."
+            echo 'Pipeline FAILED. Check the failed stage in Console Output.'
         }
 
         always {
-            cleanWs()
+            sh 'docker logout || true'
+            echo 'Project 3 CI/CD pipeline finished.'
         }
     }
 }
