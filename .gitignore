@@ -3,3 +3,28 @@ target/
 *.log
 .idea/
 .vscode/
+# SSH private keys
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Ansible sensitive files
+ansible/inventory/hosts.ini
+ansible/inventory/*.backup
+*.retry
+vault-password*
+
+# Jenkins and credentials
+credentials*
+*.secret
+*.token
+
+# Maven build output
+target/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

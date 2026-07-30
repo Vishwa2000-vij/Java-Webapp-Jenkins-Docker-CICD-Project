@@ -1,0 +1,119 @@
+---
+- name: Install and configure Docker Engine
+  hosts: docker_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    docker_architecture: >-
+      {{ 'amd64' if ansible_architecture == 'x86_64'
+         else ansible_architecture }}
+
+    docker_packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+    conflicting_packages:
+      - docker.io
+      - docker-doc
+      - docker-compose
+      - docker-compose-v2
+      - podman-docker
+      - containerd
+      - runc
+
+  tasks:
+    - name: Remove conflicting Docker packages
+      ansible.builtin.apt:
+        name: "{{ conflicting_packages }}"
+        state: absent
+
+    - name: Install Docker repository prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Create the APT keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download Docker repository signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Configure the Docker APT repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/ubuntu
+          Suites: {{ ansible_distribution_release }}
+          Components: stable
+          Architectures: {{ docker_architecture }}
+          Signed-By: /etc/apt/keyrings/docker.asc
+
+    - name: Refresh APT cache after adding Docker repository
+      ansible.builtin.apt:
+        update_cache: true
+        force_apt_get: true
+
+    - name: Install Docker Engine packages
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Start and enable Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add ubuntu user to the Docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    - name: Reset the SSH connection for new group membership
+      ansible.builtin.meta: reset_connection
+
+    - name: Check the Docker version
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+      become: false
+
+    - name: Display the Docker version
+      ansible.builtin.debug:
+        msg: "{{ docker_version.stdout }}"
+
+    - name: Check Docker service status
+      ansible.builtin.command: systemctl is-active docker
+      register: docker_service_status
+      changed_when: false
+
+    - name: Confirm Docker service status
+      ansible.builtin.assert:
+        that:
+          - docker_service_status.stdout == "active"
+        success_msg: "Docker service is active."
+        fail_msg: "Docker service is not active."

@@ -1,0 +1,40 @@
+---
+- name: Deploy Java web application using Docker
+  hosts: docker_servers
+  become: true
+  gather_facts: false
+
+  vars:
+    app_image: "vishwanathv/java-webapp:latest"
+    app_container_name: "java-webapp"
+    app_host_port: "8080"
+    app_container_port: "8080"
+
+  tasks:
+    - name: Pull the latest Java application image
+      community.docker.docker_image:
+        name: "{{ app_image }}"
+        source: pull
+        force_source: true
+
+    - name: Run the Java application container
+      community.docker.docker_container:
+        name: "{{ app_container_name }}"
+        image: "{{ app_image }}"
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "{{ app_host_port }}:{{ app_container_port }}"
+
+    - name: Wait for the application port to become available
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ app_host_port }}"
+        delay: 5
+        timeout: 60
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: >-
+          Java application container {{ app_container_name }}
+          is running on port {{ app_host_port }}.

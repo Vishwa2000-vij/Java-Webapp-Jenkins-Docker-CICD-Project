@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Supply the Ansible server's private IP through an environment variable.
+: "${ANSIBLE_SERVER_IP:?Set ANSIBLE_SERVER_IP before running this script}"
+
+SSH_USER="${SSH_USER:-ubuntu}"
+SSH_KEY="${SSH_KEY:-/var/lib/jenkins/.ssh/project3-ansible-key}"
+REMOTE_PROJECT="${REMOTE_PROJECT:-/home/ubuntu/project3-ansible}"
+PLAYBOOK="${PLAYBOOK:-playbooks/deploy-java-app.yml}"
+
+echo "Starting deployment through Ansible..."
+echo "Ansible server: ${ANSIBLE_SERVER_IP}"
+echo "Playbook: ${PLAYBOOK}"
+
+if [[ ! -r "${SSH_KEY}" ]]; then
+    echo "Error: SSH key is missing or unreadable: ${SSH_KEY}" >&2
+    exit 1
+fi
+
+ssh \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=yes \
+    -i "${SSH_KEY}" \
+    "${SSH_USER}@${ANSIBLE_SERVER_IP}" \
+    "cd '${REMOTE_PROJECT}' && ansible-playbook '${PLAYBOOK}'"
+
+echo "Deployment completed successfully."

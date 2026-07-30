@@ -1,0 +1,14 @@
+# Copy this file as hosts.ini before running Ansible.
+# Replace DOCKER_SERVER_PRIVATE_IP with the EC2 private IP.
+# Never commit private SSH keys or sensitive infrastructure details.
+
+[control]
+localhost ansible_connection=local
+
+[docker_servers]
+docker-app ansible_host=DOCKER_SERVER_PRIVATE_IP
+
+[docker_servers:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=/home/ubuntu/.ssh/project3-docker-key
+ansible_python_interpreter=/usr/bin/python3
