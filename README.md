@@ -19,34 +19,22 @@ Whenever code is pushed to the GitHub repository:
 
 ## Architecture
 
-```text
-Developer
-    |
-    | git push
-    v
-GitHub Repository
-    |
-    | Webhook
-    v
-Jenkins Server
-    |
-    | Maven Build
-    | Docker Build
-    | Docker Hub Push
-    |
-    | SSH
-    v
-Ansible Control Server
-    |
-    | Ansible Playbook
-    | SSH
-    v
-Docker Application Server
-    |
-    | Pull Docker Image
-    | Run Java Container
-    v
-Java Web Application :8080
+```mermaid
+flowchart LR
+    Developer[Developer] -->|Git Push| GitHub[GitHub Repository]
+    GitHub -->|Webhook| Jenkins[Jenkins Server<br/>AWS EC2]
+
+    Jenkins -->|Maven Build| WAR[Java WAR Artifact]
+    WAR -->|Docker Build| Image[Docker Image]
+    Image -->|Push| DockerHub[Docker Hub]
+
+    Jenkins -->|SSH Trigger| Ansible[Ansible Control Server<br/>AWS EC2]
+    Ansible -->|SSH and Playbook| DockerServer[Docker Application Server<br/>AWS EC2]
+
+    DockerHub -->|Pull Latest Image| DockerServer
+    DockerServer --> Container[Java Application Container]
+    Container -->|Port 8080| Browser[User Browser]
+```
 
 ##Technologies Used
 AWS EC2
