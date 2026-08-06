@@ -1,205 +1,99 @@
-# Automated Java Application CI/CD Pipeline
+## Featured Project
 
-An end-to-end DevOps project that automatically builds, packages, containerizes and deploys a Java web application using GitHub, Jenkins, Maven, Docker, Docker Hub, Ansible and AWS EC2.
+### Automated Java Application CI/CD Pipeline Using Jenkins, Docker and Ansible
 
-## Project Overview
+An end-to-end multi-server CI/CD implementation that automates the complete workflow from a GitHub source-code push to a running Java application container on AWS.
 
-This project demonstrates a complete CI/CD workflow for a Java web application.
+### Architecture
 
-Whenever code is pushed to the GitHub repository:
+The project uses three AWS EC2 instances:
 
-1. GitHub sends a webhook notification to Jenkins.
-2. Jenkins checks out the latest source code.
-3. Maven builds the application as a WAR file.
-4. Jenkins builds a Docker image.
-5. The image is pushed to Docker Hub.
-6. Jenkins connects to the Ansible control server through SSH.
-7. Ansible pulls the latest image and deploys it on the Docker application server.
-8. The application becomes available on port `8080`.
+* **Jenkins Server:** Builds the application, creates Docker images and coordinates the CI/CD pipeline.
+* **Ansible Control Server:** Manages configuration and application deployment.
+* **Docker Application Server:** Runs the deployed Java application container.
 
-## Architecture
+### CI/CD Workflow
 
-```mermaid
-flowchart LR
-    Developer[Developer] -->|Git Push| GitHub[GitHub Repository]
-    GitHub -->|Webhook| Jenkins[Jenkins Server<br/>AWS EC2]
-
-    Jenkins -->|Maven Build| WAR[Java WAR Artifact]
-    WAR -->|Docker Build| Image[Docker Image]
-    Image -->|Push| DockerHub[Docker Hub]
-
-    Jenkins -->|SSH Trigger| Ansible[Ansible Control Server<br/>AWS EC2]
-    Ansible -->|SSH and Playbook| DockerServer[Docker Application Server<br/>AWS EC2]
-
-    DockerHub -->|Pull Latest Image| DockerServer
-    DockerServer --> Container[Java Application Container]
-    Container -->|Port 8080| Browser[User Browser]
+```text
+Developer Push
+      ↓
+GitHub Repository
+      ↓
+GitHub Webhook
+      ↓
+Jenkins Pipeline
+      ↓
+Maven WAR Build
+      ↓
+Docker Image Build
+      ↓
+Docker Hub
+      ↓
+Jenkins Deployment Script
+      ↓
+Ansible Control Server
+      ↓
+Ansible Playbook
+      ↓
+Docker Application Server
+      ↓
+Java Application on Port 8080
 ```
 
-##Technologies Used
-AWS EC2
-Git and GitHub
-GitHub Webhooks
-Jenkins
-Maven
-Java
-Apache Tomcat
-Docker
-Docker Hub
-Ansible
-Ubuntu Linux
-SSH
-YAML
-Groovy Pipeline
+### Technologies
 
-##AWS Infrastructure
-The project uses three Ubuntu EC2 instances:
-| Server         | Purpose                                      |
-| -------------- | -------------------------------------------- |
-| Jenkins Server | Builds the Java application and Docker image |
-| Ansible Server | Automates configuration and deployment       |
-| Docker Server  | Runs the Java application container          |
+* AWS EC2
+* Jenkins
+* Maven
+* Docker
+* Docker Hub
+* Ansible
+* Git and GitHub
+* GitHub Webhooks
+* Apache Tomcat
+* Ubuntu Linux
+* Bash
+* YAML
+* SSH
 
-##CI/CD Pipeline Stages
-The Jenkins pipeline contains the following stages:
+### What I Implemented
 
-Verify the build environment
-Checkout source code
-Build the application using Maven
-Verify the WAR artifact
-Build the Docker image
-Authenticate with Docker Hub
-Push versioned and latest Docker images
-Trigger the Ansible deployment playbook
-Verify successful deployment
+* Designed a three-server AWS architecture separating build automation, configuration management and application runtime.
+* Developed a Jenkins declarative pipeline for source-code checkout, Maven packaging and Docker image creation.
+* Created versioned Docker image tags using Jenkins build numbers.
+* Stored Docker Hub credentials securely using Jenkins Credentials.
+* Configured Jenkins to trigger the Ansible control server through a protected deployment script.
+* Created an Ansible inventory for managing the Docker application server.
+* Developed an idempotent playbook to install and configure Docker Engine.
+* Developed a deployment playbook to pull the latest image and create or update the Java application container.
+* Configured private-IP SSH communication between the Ansible and Docker servers.
+* Configured GitHub webhooks for automatic pipeline execution.
+* Troubleshot SSH, YAML, Docker repository, Jenkins credential and disk-space issues.
 
-##Application Artifact
+### Ansible Components
 
-Maven generates:
+```text
+ansible/
+├── ansible.cfg
+├── inventory/
+│   └── hosts.ini.example
+└── playbooks/
+    ├── install-docker.yml
+    └── deploy-java-app.yml
+```
 
-- target/java-webapp.war
+### Pipeline Stages
 
-The Dockerfile deploys the WAR file as:
+1. Verify environment
+2. Check out source code
+3. Build the Java application
+4. Verify the WAR artifact
+5. Build Docker images
+6. Authenticate to Docker Hub
+7. Push versioned Docker images
+8. Trigger Ansible deployment
+9. Verify deployment
 
-- /usr/local/tomcat/webapps/ROOT.war
+### Repository
 
-The application runs using Apache Tomcat on:
-
-- Port 8080
-Docker Image
-- vishwanathv/java-webapp
-
-The Jenkins pipeline pushes two tags:
-
- vishwanathv/java-webapp:<jenkins-build-number>
-- vishwanathv/java-webapp:latest
-
-##Ansible Automation
-
-The Ansible control server manages the Docker application server through SSH.
-
-The included playbooks perform the following operations:
-
-install-docker.yml
-Configures Docker’s package repository
-Installs Docker Engine
-Starts and enables the Docker service
-Adds the Ubuntu user to the Docker group
-Verifies the Docker installation
-deploy-java-app.yml
-Pulls the latest application image
-Creates or updates the Java container
-Publishes container port 8080
-Configures an automatic restart policy
-Waits for the application port to become available
-
-##Repository Structure
-.
-├── ansible
-│   ├── inventory
-│   │   └── hosts.ini.example
-│   └── playbooks
-│       ├── deploy-java-app.yml
-│       └── install-docker.yml
-├── docs
-│   ├── architecture
-│   └── screenshots
-├── scripts
-│   └── project3-deploy.sh.example
-├── src
-├── Dockerfile
-├── Jenkinsfile
-├── pom.xml
-├── .gitignore
-└── README.md
-
-##Security Practices
-
-SSH port 22 is restricted to trusted sources.
-EC2 instances communicate using private IP addresses.
-Dedicated SSH keys are used between Jenkins, Ansible and Docker servers.
-Docker Hub credentials are stored in Jenkins Credentials.
-Tokens and passwords are not included in the Jenkinsfile.
-Private keys and real inventory files are excluded through .gitignore.
-Jenkins credentials are referenced using a credential ID.
-
-##Jenkins Credential
-
-The Jenkins pipeline expects a username-and-password credential with this ID:
-
-- dockerhub-credentials
-
-The password field should contain a Docker Hub personal access token.
-
-##Sample Ansible Inventory
-
-Copy the example inventory:
-
-cp ansible/inventory/hosts.ini.example ansible/inventory/hosts.ini
-
-Replace:
-
-DOCKER_SERVER_PRIVATE_IP
-
-with the private IP of the Docker application server.
-
-Never commit the real inventory file or SSH private keys.
-
-##Run the Ansible Playbooks
-
-Install Docker:
-
-ansible-playbook ansible/playbooks/install-docker.yml
-
-Deploy the Java application:
-
-ansible-playbook ansible/playbooks/deploy-java-app.yml
-
-##Deployment Result
-
-A successful pipeline performs:
-GitHub Push
-→ Jenkins Build
-→ Maven WAR
-→ Docker Image
-→ Docker Hub
-→ Ansible Deployment
-→ Running Java Container
-The deployed application is accessible through:
-
-http://DOCKER-SERVER-PUBLIC-IP:8080
-
-##Key Learning Outcomes
-Designed a multi-server CI/CD architecture on AWS
-Automated Java builds using Maven
-Created Jenkins Declarative Pipelines
-Built and versioned Docker images
-Used Jenkins credentials securely
-Automated Docker installation and deployment using Ansible
-Configured SSH communication between DevOps servers
-Integrated GitHub webhooks for automatic pipeline triggering
-Applied basic AWS security-group and cost-management practices
-
-##Author
-
-Vishwanath Vishwakarma
+github.com/Vishwa2000-vij/Automated Java Application CI/CD Pipeline Using Jenkins, Docker and Ansible-Project
